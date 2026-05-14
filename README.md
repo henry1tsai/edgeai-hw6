@@ -1,1 +1,1 @@
-# Edge-AI Production CI/CD Project
+# HW6: Optimized Edge-AI Service

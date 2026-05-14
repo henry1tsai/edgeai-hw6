@@ -1,0 +1,6 @@
+__pycache__/
+*.engine
+*.pt
+runs/
+node_modules/
+.env
