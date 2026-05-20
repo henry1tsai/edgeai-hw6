@@ -31,7 +31,7 @@ RUN ORT_VER=$(python3 -c "import onnxruntime; print(onnxruntime.__version__)") &
     : > "$STUB/RECORD"
 
 # Copy application code and the PyTorch weights
-COPY inference_node.py /app/
+COPY src/inference_node.py /app/
 COPY entrypoint.sh /app/
 RUN chmod +x /app/entrypoint.sh && mkdir -p /opt/models
 COPY best.pt /opt/models/
