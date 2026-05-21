@@ -1,6 +1,6 @@
 {
   "fp16_map50": 0.4138,
-  "int8_map50": 0.3638,
+  "int8_map50": 0.4106,
   "test_split": "edgeai-hw5/models/dataset (split=test, imgsz=320)",
   "calibrated_at": "2026-05-19",
   "best_pt_md5": "placeholder-update-after-real-calibration"
