@@ -99,25 +99,13 @@ proves insufficient in production, but the current INT8 result already meets the
 
 ### Henry (組員A)
 
-**負責部分：** Part A（測試與覆蓋率）、Part 0 stub（calibration 架構）
+在 HW6 中我負責 Part A 的全部實作：將 `inference_node.py` 從一個單體 `main()` 重構為 `InferenceNode` 類別搭配 `NodeConfig` dataclass，抽離 `MqttPublisher` 模組，並撰寫四個測試檔案（`test_mqtt.py` 11 個測試、`test_inference.py` 16 個測試、`test_accuracy.py` accuracy gate、`test_healthcheck.py` 7 個測試），最終在 main 分支達到 99% coverage，同時完成兩個 demo PR 展示 coverage gate 與 accuracy gate 的紅→綠流程。除此之外也建立了 `healthcheck.py` 與 `calibrate_int8.py` 的骨架，讓組員 B 的 Part D 有介面可以對接。
 
-在 HW6 中我負責 Part A 的全部實作，包含將 `inference_node.py` 重構為可測試的架構、
-抽離 `MqttPublisher` 模組、撰寫 `test_mqtt.py`（11 個測試）、`test_inference.py`（16 個測試）、
-`test_accuracy.py`（accuracy gate）與 `test_healthcheck.py`（7 個測試），最終達到 99% coverage。
+這次最困難的技術問題，是讓所有程式碼在不加任何 `# noqa`、`# type: ignore`、`# nosec` 的前提下，同時通過 ruff、mypy（`disallow_any_explicit`）、bandit、pylint 四個工具。問題集中在 paho-mqtt callback 的參數型別——paho 的型別 stub 把這些參數標為 `Any`，但 mypy 的 `disallow_any_explicit` 不允許在函式簽名中出現 `Any`。我嘗試改用 `object`，卻又在 `_build_detections` 遇到 `object` 不可索引、不可迭代的錯誤。最終的解法是用 `Protocol` 定義 `_Box` 與 `_Result` 介面描述 Ultralytics 的 result 結構，讓 mypy 可以靜態驗證，同時在 numpy array 取值時改用 `.item()` 搭配 `hasattr` guard，避免字串解析的脆弱性。這個過程讓我理解到 compliance 工具的設定需要在寫第一行程式碼前就確認，否則後期改動的成本會遠高於預期。
 
-**最具挑戰的技術問題：** 最困難的部分是讓程式碼同時通過 ruff、mypy、bandit、pylint 四個工具的嚴格檢查，
-且不能使用任何 `# noqa` 或 `# type: ignore` suppression。最棘手的是 mypy 的 `disallow_any_explicit`
-規則——paho-mqtt 的 callback 參數型別在 paho 的 stub 中是 `Any`，但直接用 `Any` 會被 mypy 擋下，
-最後改用 `object` 搭配 `Protocol` 定義 `_Box` 和 `_Result` 介面才解決。
+在工程流程上，這次第一次在真實的 CI pipeline 中體驗到「quality gate 作為 PR 守門員」的意義。過去寫測試是為了確認功能正確，但這次 coverage gate 與 accuracy gate 直接阻擋了 PR merge，讓品質要求變成流程的一部分而不只是建議。特別是 accuracy gate 的 snapshot 模式——把 FP16 與 INT8 的 mAP 數值存成 JSON 提交進 repo，讓每次 calibration 的結果都有版本記錄，CI 讀這個檔案而不是在 runner 上重跑昂貴的 `model.val()`——這個設計讓我第一次感受到什麼是「把昂貴的測量移到正確的階段，把輕量的驗證留在每次 PR」的工程思維。
 
-**學到的新知識：** 學到 pytest 的 dependency injection 模式——透過 `client_factory` 參數注入 mock client，
-比 `unittest.mock.patch` 更穩固，因為 patch 路徑依賴 import 位置，容易因重構而失效；
-而 factory injection 只依賴介面，測試更易維護。
-
-**下次會怎麼做：** 下次會在寫程式碼之前先確認所有 compliance 工具的設定，
-而不是寫完之後再逐一修正。這次花了很多時間在 `ANN401`（不允許 `Any`）和
-`PLW0603`（global statement）這類規則上，如果一開始就知道這些限制，
-設計時就會選擇 Protocol + dataclass 而非使用 `Any`。
+回頭看，如果重來一次，我會在專案開始時先跑一次空的 `pdm run check`，讀懂每條規則的含義，再開始寫程式碼。這次是寫完才跑 compliance，導致花了大量時間在修改已經寫好的型別標注與函式設計。另一個想改的地方是測試的撰寫順序——應該先寫測試，讓 coverage report 告訴我哪些路徑沒被覆蓋，而不是先寫完實作再補測試；後者很容易寫出「測試程式碼存在但沒有真正執行到核心邏輯」的假覆蓋率。
 
 ### [組員B名字]
 
