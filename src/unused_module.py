@@ -46,3 +46,43 @@ class UnusedModule:
     def f10(self) -> int:
         """Return 10."""
         return 10
+
+    def f11(self) -> int:
+        """Return 11."""
+        return 11
+
+    def f12(self) -> int:
+        """Return 12."""
+        return 12
+
+    def f13(self) -> int:
+        """Return 13."""
+        return 13
+
+    def f14(self) -> int:
+        """Return 14."""
+        return 14
+
+    def f15(self) -> int:
+        """Return 15."""
+        return 15
+
+    def f16(self) -> int:
+        """Return 16."""
+        return 16
+
+    def f17(self) -> int:
+        """Return 17."""
+        return 17
+
+    def f18(self) -> int:
+        """Return 18."""
+        return 18
+
+    def f19(self) -> int:
+        """Return 19."""
+        return 19
+
+    def f20(self) -> int:
+        """Return 20."""
+        return 20
