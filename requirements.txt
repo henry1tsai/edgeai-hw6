@@ -1,3 +1,5 @@
 paho-mqtt==2.1.0
 numpy==1.26.4
 opencv-python==4.10.0.84
+onnxruntime==1.20.0
+ultralytics==8.3.40
