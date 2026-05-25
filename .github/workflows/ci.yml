@@ -1,6 +1,11 @@
-# Copyright (c) 2026 henry1tsai
+# Copyright (c) 2026 linyanting
 # Tatung University — I4210 AI實務專題
+# .github/workflows/ci.yml — Part B five-stage CI pipeline
+# Triggers: push (any branch), pull_request → main, workflow_dispatch
+# Jobs: lint → (test, security-scan) → build → integration-test
+
 name: CI
+
 on:
   push:
     branches: ["**"]
@@ -13,29 +18,48 @@ permissions:
   packages: write
 
 jobs:
+  # ===========================================================================
+  # Stage 1: Lint — 程式碼風格與基本錯誤檢查（最便宜的關卡，先擋下來）
+  # ===========================================================================
   lint:
     name: Ruff lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
           cache: pip
-      - run: pip install ruff==0.6.9
-      - run: ruff check . --output-format=github
 
+      - name: Install ruff
+        run: pip install ruff==0.6.9
+
+      - name: Run ruff check
+        run: ruff check . --output-format=github
+
+  # ===========================================================================
+  # Stage 2a: Test — 跑 pytest 並要求 coverage ≥ 90%
+  # 與 security-scan 並行執行（兩個都只 needs: lint）
+  # ===========================================================================
   test:
     name: Pytest + coverage
     runs-on: ubuntu-latest
     needs: lint
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
           cache: pip
-      - name: Install test deps
+
+      - name: Install test dependencies
+        # 不裝整份 requirements.txt — Jetson 用的 torch 在 x86 雲端裝不起來
+        # 但要裝 opencv-python + paho-mqtt，因為 src/inference_node.py
+        # 在 module 頂層 import 它們，沒裝連測試檔都 import 不進來
         run: |
           pip install \
             pytest==8.3.3 \
@@ -43,7 +67,10 @@ jobs:
             pytest-mock==3.14.0 \
             opencv-python==4.10.0.84 \
             paho-mqtt==2.1.0
-      - name: Run pytest with coverage gate
+
+      - name: Run pytest with coverage gate (≥90%)
+        # --ignore=tests/integration: integration test 要在 Jetson 上跑，
+        # 雲端 runner 沒有 docker + GPU，會 fail
         run: |
           pytest tests/ \
             --ignore=tests/integration \
@@ -53,84 +80,110 @@ jobs:
             --cov-report=html \
             --cov-fail-under=90 \
             -v
-      - name: Upload coverage report
+
+      - name: Upload coverage HTML report
+        # if: always() — 就算測試失敗也要上傳報告，方便除錯
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-html
           path: htmlcov/
 
+  # ===========================================================================
+  # Stage 2b: Security scan — Bandit + pip-audit
+  # 與 test 並行執行
+  # ===========================================================================
   security-scan:
     name: Bandit + pip-audit
     runs-on: ubuntu-latest
     needs: lint
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
           cache: pip
-      - run: pip install 'bandit[toml]==1.7.10' pip-audit==2.7.3
-      - name: Bandit (Python SAST)
-        run: bandit -r src/ -ll -c pyproject.toml
-      - name: pip-audit (CVE scan)
-        run: pip-audit --strict -r requirements.txt --ignore-vuln PYSEC-2025-210 --ignore-vuln PYSEC-2025-194 --ignore-vuln PYSEC-2025-196 --ignore-vuln PYSEC-2025-195 --ignore-vuln PYSEC-2025-193 --ignore-vuln PYSEC-2025-192 --ignore-vuln PYSEC-2026-139 --ignore-vuln PYSEC-2025-191 --ignore-vuln PYSEC-2025-197 --ignore-vuln PYSEC-2025-189 --ignore-vuln PYSEC-2025-190
 
+      - name: Install security tools
+        run: pip install bandit==1.7.10 pip-audit==2.7.3
+
+      - name: Bandit (Python SAST)
+        # -r 遞迴掃 src/、-ll 報告 Low 等級以上的問題
+        run: bandit -r src/ -ll
+
+      - name: pip-audit (CVE scan on dependencies)
+        # --strict — 警告也當錯誤；任何 direct/transitive dep 有 CVE 都會 fail
+        run: pip-audit --strict -r requirements.txt
+
+  # ===========================================================================
+  # Stage 3: Build — 打包 ARM64 image 並推到 GHCR
+  # 需要 test 和 security-scan 都過才會跑（因為 build 很貴，QEMU 模擬 ARM64 慢）
+  # ===========================================================================
   build:
     name: Build & push ARM64 image
     runs-on: ubuntu-latest
     needs: [test, security-scan]
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up QEMU
+      - uses: actions/checkout@v5
+
+      - name: Set up QEMU (for ARM64 cross-build)
         uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-      - name: Set up Buildx
+
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Log in to GHCR
+
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Compute image tags
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=sha,format=short,prefix=sha-
-            type=ref,event=branch
-            type=ref,event=pr
-            type=raw,value=latest,enable={{is_default_branch}}
-      - name: Build and push
+
+      - name: Compute short SHA tag
+        id: sha
+        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Build and push ARM64 image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.ci
           platforms: linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ghcr.io/${{ github.repository }}:sha-${{ steps.sha.outputs.short }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # ===========================================================================
+  # Stage 4: Integration test — 在真實 Jetson 上跑一次
+  # 只在 push 到 main 才跑（PR 不佔用實體硬體）
+  # ===========================================================================
   integration-test:
     name: Integration test (Jetson)
     runs-on: [self-hosted, linux, arm64, jetson]
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
       - name: Login to GHCR on Jetson
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: Install pytest deps
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.actor }} --password-stdin
+
+      - name: Install pytest dependencies on Jetson
         run: pip install --user pytest==8.3.3 paho-mqtt==2.1.0
-      - name: Run integration test
+
+      - name: Run E2E integration test
         env:
           SHA_SHORT: ${{ github.sha }}
         run: |
           SHA=$(echo "$SHA_SHORT" | cut -c1-7)
-          IMG="ghcr.io/${{ github.repository }}:sha-${SHA}"
+          IMG="ghcr.io/${{ github.repository }}:sha-$SHA"
           IMAGE="$IMG" pytest tests/integration/ -v
