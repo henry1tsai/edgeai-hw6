@@ -93,3 +93,4 @@ def test_module_start_in_thread() -> None:
         t = start_in_thread()
         mock_start.assert_called_once()
         assert t is mock_start.return_value
+        
