@@ -273,7 +273,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--mqtt-broker", default=os.getenv("MQTT_BROKER", "localhost"))
     parser.add_argument("--mqtt-port", type=int, default=int(os.getenv("MQTT_PORT", "1883")))
-    parser.add_argument("--mqtt-topic", default="/jetson/vision/detections")
+    parser.add_argument("--mqtt-topic", default="jetson/vision/detections")
     args = parser.parse_args(argv)
 
     print(f"[inference_node main] 初始化 MQTT 配置，Broker: {args.mqtt_broker}:{args.mqtt_port}")
