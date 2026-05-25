@@ -107,7 +107,7 @@ jobs:
           cache: pip
 
       - name: Install security tools
-        run: pip install bandit==1.7.10 pip-audit==2.7.3
+        run: pip install "bandit[toml]==1.7.10" pip-audit==2.7.3
 
       - name: Bandit (Python SAST)
         # -r 遞迴掃 src/、-ll 報告 Low 等級以上的問題
