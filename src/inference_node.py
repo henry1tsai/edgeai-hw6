@@ -218,14 +218,18 @@ class InferenceNode:
 
     def run(self) -> None:  # pragma: no cover
         """Run the inference loop until SIGTERM or video exhaustion."""
+        print(f"[inference] 正在載入模型: {self._model_path}")
         model = self._model_factory(self._model_path, "detect")  # type: ignore[operator]
+        
+        print(f"[inference] 正在開啟影片輸入源: {self._source}")
         cap = cv2.VideoCapture(self._source)
         if not cap.isOpened():
-            print(f"[inference] cannot open source: {self._source}")
+            print(f"[inference] 錯誤：無法開啟輸入源（檔案不存在或格式損毀）: {self._source}")
             sys.exit(1)
 
         frame_count = 0
         fps_start = time.monotonic()
+        print("[inference] 成功連線並初始化環境，開始進入推論循環...")
 
         while _running:
             ret, frame = cap.read()
@@ -233,6 +237,7 @@ class InferenceNode:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 ret, frame = cap.read()
                 if not ret:
+                    print("[inference] 警告：無法重複讀取影片檔案（EOF 重設失敗）")
                     break
 
             results = model.predict(frame, imgsz=self._imgsz, conf=self._conf, verbose=False)
@@ -253,7 +258,7 @@ class InferenceNode:
 
         cap.release()
         self._publisher.disconnect()
-        print(f"[inference] done, total frames={frame_count}")
+        print(f"[inference] 正常關閉，總處理幀數={frame_count}")
 
 
 # ── entry point ───────────────────────────────────────────────────────

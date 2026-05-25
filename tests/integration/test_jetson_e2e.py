@@ -24,7 +24,7 @@ MQTT_TOPIC = "jetson/vision/detections"
 SAMPLE_FRAME = Path(__file__).parent / "sample_frame.jpg"
 CONTAINER_NAME = "edgeai-hw6-integration-test"
 ENGINE_LOAD_TIMEOUT = 600  # 10 分鐘（第一次 compile 很慢）
-MQTT_WAIT_TIMEOUT = 30  # 30 秒等 MQTT 訊息
+MQTT_WAIT_TIMEOUT = 60     # 調寬至 60 秒，給予 Jetson 足夠的時間初始化 CUDA 與第一幀推論
 
 
 @pytest.fixture
@@ -82,16 +82,18 @@ def inference_container(tmp_path):
 
     yield CONTAINER_NAME
 
-    # cleanup
+    # 修正 cleanup 與日誌完整輸出機制，確保能看到 Python 的錯誤 Traceback
     logs = subprocess.run(
         ["docker", "logs", CONTAINER_NAME],
         capture_output=True,
         text=True,
         check=False,
     )
-    print("\n========== Container logs ==========")
-    print(logs.stdout[-3000:])
-    print(logs.stderr[-3000:])
+    print("\n========== Container STDOUT ==========")
+    print(logs.stdout if logs.stdout.strip() else "(Empty)")
+    print("\n========== Container STDERR ==========")
+    print(logs.stderr if logs.stderr.strip() else "(Empty)")
+    
     subprocess.run(
         ["docker", "rm", "-f", CONTAINER_NAME],
         capture_output=True,
@@ -105,7 +107,7 @@ def test_image_is_per_commit_sha_tagged():
 
 
 def test_inference_publishes_mqtt_within_window(inference_container):
-    """End-to-end: container should publish MQTT detections within 30s."""
+    """End-to-end: container should publish MQTT detections within window."""
     # 訂閱 MQTT
     msg_queue = queue.Queue()
 
