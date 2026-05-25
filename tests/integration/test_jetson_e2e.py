@@ -8,6 +8,7 @@ starts the container with --runtime nvidia, waits for the TensorRT
 engine to load, then validates one MQTT detection round-trip.
 """
 
+import cv2
 import json
 import os
 import queue
@@ -27,37 +28,57 @@ MQTT_WAIT_TIMEOUT = 30        # 30 秒等 MQTT 訊息
 
 
 @pytest.fixture
-def inference_container():
-    """Pull the per-commit image, start container, yield to test, then cleanup."""
-    # 1. 確保沒有殘留 container
+def inference_container(tmp_path):
+    """Generate a short video from sample_frame.jpg, start container."""
+    sample_path = Path(__file__).parent / "sample_frame.jpg"
+    if not sample_path.exists():
+        pytest.skip(f"sample_frame.jpg not found at {sample_path}")
+    
+    # 用 OpenCV 把單張 JPG 轉成 5 秒影片
+    img = cv2.imread(str(sample_path))
+    if img is None:
+        pytest.fail(f"Cannot read {sample_path}")
+    
+    h, w = img.shape[:2]
+    video_path = tmp_path / "test_video.mp4"
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    writer = cv2.VideoWriter(str(video_path), fourcc, 10.0, (w, h))
+    if not writer.isOpened():
+        pytest.fail("Cannot open VideoWriter")
+    for _ in range(50):   # 50 frames @ 10 fps = 5 seconds
+        writer.write(img)
+    writer.release()
+    
+    # 確保檔案有寫出來
+    if not video_path.exists() or video_path.stat().st_size == 0:
+        pytest.fail("Failed to generate video from sample frame")
+    
+    # 後續 docker run
     subprocess.run(
         ["docker", "rm", "-f", CONTAINER_NAME],
         capture_output=True, check=False,
     )
-
-    # 2. 拉 image
-    subprocess.run(
-        ["docker", "pull", IMAGE],
-        check=True, timeout=300,
-    )
-
-    # 3. 啟動 container
+    subprocess.run(["docker", "pull", IMAGE], check=True, timeout=300)
     subprocess.run([
         "docker", "run", "-d",
         "--name", CONTAINER_NAME,
         "--runtime", "nvidia",
         "--network", "host",
         "-v", "lab12-models:/opt/models",
+        "-v", f"{video_path}:/opt/data/test_video.mp4:ro",
         IMAGE,
     ], check=True)
-
+    
     yield CONTAINER_NAME
-
-    # 4. 清理（不管成功失敗都跑）
-    subprocess.run(
+    
+    # cleanup
+    logs = subprocess.run(
         ["docker", "logs", CONTAINER_NAME],
-        capture_output=True, check=False,
+        capture_output=True, text=True, check=False,
     )
+    print("\n========== Container logs ==========")
+    print(logs.stdout[-3000:])
+    print(logs.stderr[-3000:])
     subprocess.run(
         ["docker", "rm", "-f", CONTAINER_NAME],
         capture_output=True, check=False,
