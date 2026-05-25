@@ -30,6 +30,10 @@ MQTT_WAIT_TIMEOUT = 60     # 調寬至 60 秒，給予 Jetson 足夠的時間初
 @pytest.fixture
 def inference_container(tmp_path):
     """Generate a short video from sample_frame.jpg, start container."""
+    # 【新增防禦機制】確保測試機台本機的 Mosquitto Broker 有啟動
+    print("\n[setup] 正在檢查/啟動測試環境的 Mosquitto Broker...")
+    subprocess.run(["sudo", "systemctl", "start", "mosquitto"], check=False)
+
     sample_path = Path(__file__).parent / "sample_frame.jpg"
     if not sample_path.exists():
         pytest.skip(f"sample_frame.jpg not found at {sample_path}")
@@ -60,6 +64,8 @@ def inference_container(tmp_path):
         check=False,
     )
     subprocess.run(["docker", "pull", IMAGE], check=True, timeout=300)
+
+    print(f"[setup] 正在啟動測試容器: {CONTAINER_NAME}")
     subprocess.run(
         [
             "docker",
@@ -82,7 +88,7 @@ def inference_container(tmp_path):
 
     yield CONTAINER_NAME
 
-    # 修正 cleanup 與日誌完整輸出機制，確保能看到 Python 的錯誤 Traceback
+    # cleanup 保持不變
     logs = subprocess.run(
         ["docker", "logs", CONTAINER_NAME],
         capture_output=True,

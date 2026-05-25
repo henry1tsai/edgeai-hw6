@@ -276,13 +276,17 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--mqtt-topic", default="/jetson/vision/detections")
     args = parser.parse_args(argv)
 
+    print(f"[inference_node main] 初始化 MQTT 配置，Broker: {args.mqtt_broker}:{args.mqtt_port}")
     config = PublisherConfig(
         host=args.mqtt_broker,
         port=args.mqtt_port,
         topic=args.mqtt_topic,
     )
     publisher = MqttPublisher(config)
+
+    print("[inference_node main] 正在嘗試連線至 MQTT Broker...")
     publisher.connect()
+    print("[inference_node main] MQTT 連線指令已發送。")
 
     node_config = NodeConfig(
         model_path=args.model,
