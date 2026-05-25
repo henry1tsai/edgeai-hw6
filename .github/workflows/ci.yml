@@ -111,7 +111,7 @@ jobs:
 
       - name: Bandit (Python SAST)
         # -r 遞迴掃 src/、-ll 報告 Low 等級以上的問題
-        run: bandit -r src/ -ll
+        run: bandit -r src/ -ll -c pyproject.toml
 
       - name: pip-audit (CVE scan on dependencies)
         # --strict — 警告也當錯誤；任何 direct/transitive dep 有 CVE 都會 fail
