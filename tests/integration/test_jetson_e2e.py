@@ -93,7 +93,7 @@ def inference_container(tmp_path):
     print(logs.stdout if logs.stdout.strip() else "(Empty)")
     print("\n========== Container STDERR ==========")
     print(logs.stderr if logs.stderr.strip() else "(Empty)")
-    
+
     subprocess.run(
         ["docker", "rm", "-f", CONTAINER_NAME],
         capture_output=True,

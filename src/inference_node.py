@@ -220,7 +220,7 @@ class InferenceNode:
         """Run the inference loop until SIGTERM or video exhaustion."""
         print(f"[inference] 正在載入模型: {self._model_path}")
         model = self._model_factory(self._model_path, "detect")  # type: ignore[operator]
-        
+
         print(f"[inference] 正在開啟影片輸入源: {self._source}")
         cap = cv2.VideoCapture(self._source)
         if not cap.isOpened():
