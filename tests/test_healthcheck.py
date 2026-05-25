@@ -7,37 +7,46 @@ import json
 import threading
 import time
 from http.client import HTTPConnection
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from src.healthcheck import HealthCheckServer, _current_power_mode, start_in_thread
 
 
-def test_current_power_mode_no_nvpmodel() -> None:
-    """Return empty string when nvpmodel binary is not found."""
-    with patch("src.healthcheck.shutil.which", return_value=None):
+def test_current_power_mode_no_status_file(tmp_path: Path) -> None:
+    """Return empty string when nvpmodel status file is not found."""
+    nonexistent = tmp_path / "nope"
+    with patch("src.healthcheck._STATUS_PATH", nonexistent):
         assert _current_power_mode() == ""
 
 
-def test_current_power_mode_timeout() -> None:
-    """Return empty string when nvpmodel times out."""
-    import subprocess
-
+def test_current_power_mode_read_error(tmp_path: Path) -> None:
+    """Return empty string when reading nvpmodel files raises OSError."""
+    status = tmp_path / "status"
+    conf = tmp_path / "conf"
+    status.write_text("pmode:0001 fmode:fanNull")
+    conf.write_text("< POWER_MODEL ID=1 NAME=15W >")
     with (
-        patch("src.healthcheck.shutil.which", return_value="/usr/sbin/nvpmodel"),
-        patch(
-            "src.healthcheck.subprocess.run", side_effect=subprocess.TimeoutExpired("nvpmodel", 2)
-        ),
+        patch("src.healthcheck._STATUS_PATH", status),
+        patch("src.healthcheck._CONF_PATH", conf),
+        patch.object(Path, "read_text", side_effect=OSError("permission denied")),
     ):
         assert _current_power_mode() == ""
 
 
-def test_current_power_mode_parses_output() -> None:
-    """Parse 'Power Mode' line from nvpmodel -q output."""
-    mock_result = MagicMock()
-    mock_result.stdout = "NV Power Mode: 15W\nSome other line\n"
+def test_current_power_mode_parses_status_and_conf(tmp_path: Path) -> None:
+    """Parse mode ID from status file and resolve NAME from conf."""
+    status = tmp_path / "status"
+    conf = tmp_path / "conf"
+    status.write_text("pmode:0001 fmode:fanNull")
+    conf.write_text(
+        "< POWER_MODEL ID=0 NAME=MAXN >\n"
+        "< POWER_MODEL ID=1 NAME=15W >\n"
+        "< POWER_MODEL ID=2 NAME=25W >\n"
+    )
     with (
-        patch("src.healthcheck.shutil.which", return_value="/usr/sbin/nvpmodel"),
-        patch("src.healthcheck.subprocess.run", return_value=mock_result),
+        patch("src.healthcheck._STATUS_PATH", status),
+        patch("src.healthcheck._CONF_PATH", conf),
     ):
         assert _current_power_mode() == "15W"
 

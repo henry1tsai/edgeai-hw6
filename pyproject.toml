@@ -1,6 +1,13 @@
 # =========================================================================
 # HW6 Coding-Compliance Policy — READ BEFORE MODIFYING
+# -------------------------------------------------------------------------
+# `pdm run check` runs five sub-checks (ruff format, ruff lint, mypy,
+# bandit, pylint) and `pdm run ci` additionally runs `test-cov` (pytest +
+# coverage >= 90 %). Everything must pass for submission.
+#
+# *** No new suppressions are allowed. ***
 # =========================================================================
+
 [project]
 name = "edgeai-hw6"
 version = "0.1.0"
@@ -28,54 +35,59 @@ quality = [
     "pylint>=3.0",
 ]
 
+# ---------------------------------------------------------------------------
+# All pdm scripts in ONE top-level [tool.pdm.scripts] block.
+# Sub-scripts that need multi-line shell commands use their own
+# [tool.pdm.scripts.<name>] sub-table below.
+# ---------------------------------------------------------------------------
+
 [tool.pdm.scripts]
-test = {shell = "echo; echo '━━━ pytest [test] ━━━'; pytest"}
-lint = {shell = "echo; echo '━━━ ruff check [lint] ━━━'; ruff check ."}
-format = {shell = "echo; echo '━━━ ruff format [format] ━━━'; ruff format ."}
+test = {shell = "echo; echo '--- pytest [test] ---'; pytest"}
+lint = {shell = "echo; echo '--- ruff check [lint] ---'; ruff check ."}
+format = {shell = "echo; echo '--- ruff format [format] ---'; ruff format ."}
+check = {composite = ["format-check", "lint", "typecheck", "security", "pylint"]}
+ci = {composite = ["check", "test-cov"]}
 
 [tool.pdm.scripts.test-cov]
 shell = """
-echo; echo '━━━ pytest + coverage [test-cov] ━━━'; \
+echo; echo '--- pytest + coverage [test-cov] ---'; \
 pytest --ignore=tests/integration --cov=src --cov-report=term-missing \
   --cov-report=html --cov-fail-under=90\
 """
 
 [tool.pdm.scripts.lint-fix]
 shell = """
-echo; echo '━━━ ruff check --fix [lint-fix] ━━━'; \
+echo; echo '--- ruff check --fix [lint-fix] ---'; \
 ruff check --fix .\
 """
 
 [tool.pdm.scripts.format-check]
 shell = """
-echo; echo '━━━ ruff format --check [format-check] ━━━'; \
+echo; echo '--- ruff format --check [format-check] ---'; \
 ruff format --check .\
 """
 
 [tool.pdm.scripts.typecheck]
 shell = """
-echo; echo '━━━ mypy [typecheck] ━━━'; \
+echo; echo '--- mypy [typecheck] ---'; \
 mypy src/inference_node.py src/healthcheck.py src/mqtt_publisher.py \
   calibration/calibrate_int8.py\
 """
 
 [tool.pdm.scripts.security]
 shell = """
-echo; echo '━━━ bandit [security] ━━━'; \
+echo; echo '--- bandit [security] ---'; \
 bandit -r src calibration -c pyproject.toml\
 """
 
 [tool.pdm.scripts.pylint]
 shell = """
-echo; echo '━━━ pylint [pylint] ━━━'; \
+echo; echo '--- pylint [pylint] ---'; \
 pylint src/inference_node.py src/healthcheck.py src/mqtt_publisher.py \
   calibration/calibrate_int8.py --fail-under=7.0\
 """
 
-check = {composite = [
-    "format-check", "lint", "typecheck", "security", "pylint",
-]}
-ci = {composite = ["check", "test-cov"]}
+# ---------------------------------------------------------------------------
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -104,7 +116,7 @@ directory = "htmlcov"
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-extend-exclude = [".venv", ".pdm-build", "actions-runner"]
+extend-exclude = [".venv", ".pdm-build"]
 
 [tool.ruff.lint]
 select = [
@@ -121,9 +133,13 @@ select = [
     "D",
 ]
 ignore = [
+    # bare-except — paho callbacks swallow ALL exceptions
     "E722",
+    # ambiguous unicode (false positives in Chinese file headers)
     "RUF001", "RUF002", "RUF003",
+    # collection-literal-concatenation (style preference, not a bug)
     "RUF005",
+    # invalid-function-name — http.server's do_GET is fixed by stdlib
     "N802",
 ]
 
@@ -161,7 +177,12 @@ module = ["cv2", "paho.mqtt", "paho.mqtt.client", "paho.mqtt.enums",
 ignore_missing_imports = true
 
 [tool.bandit]
-skips = ["B101", "B108", "B104", "B404", "B603"]
+skips = [
+    # assert_used — pytest tests legitimately use bare assert
+    "B101",
+    # hardcoded_tmp_directory — test fixtures use predictable paths
+    "B108",
+]
 exclude_dirs = ["tests", ".venv", ".mypy_cache", ".pdm-build"]
 
 [tool.pylint.main]
@@ -179,7 +200,6 @@ disable = [
     "fixme",
     "invalid-name",
     "import-outside-toplevel",
-    "global-statement",
 ]
 
 [tool.pylint.design]
