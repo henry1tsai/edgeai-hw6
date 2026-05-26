@@ -20,7 +20,12 @@ services:
     environment:
       MQTT_BROKER: localhost
       MODEL_VERSION: ${IMAGE_TAG}
-    # 🎯 核心魔改在這裡：只有當 IMAGE_TAG 是 v1.0.6 時，才逼它去讀一個不存在的檔案！
-    # 這樣一來，v1.0.6 啟動時會因為找不到輸入源而崩潰；
-    # 但當 rollback.sh 把 IMAGE_TAG 換回 v1.0.1 時，這個 command 就不會生效（因為 v1.0.1 的鏡像內部自帶原本正確的預設啟動命令）！
+    # 🎯 核心魔改：只有當 IMAGE_TAG 是 v1.0.7（當前部署版）時，才逼它去讀一個不存在的檔案！
+    # 這樣一來，v1.0.7 啟動時會因為找不到輸入源而崩潰，觸發 deploy.sh 的健康檢查失敗。
+    # 當自動回滾將 IMAGE_TAG 換回 v1.0.1 時，舊映像檔會因為擺脫這個不存在的檔案而順利綠燈復活。
     command: ["--model", "/opt/models/best.engine", "--source", "/opt/data/NOT_EXIST_FILE_ONLY_FOR_V106.mp4"]
+
+# 🎯 根源修正：volumes 必須是頂層（Top-level）宣告，最左邊「絕對不能有空格」，必須與 services: 對齊！
+volumes:
+  lab12-models:
+    external: true
