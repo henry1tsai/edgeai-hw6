@@ -96,15 +96,15 @@ docker compose -f "$COMPOSE_FILE" up -d --force-recreate
 # ---------------------------------------------------------------------------
 # 4. Wait for health; roll back on fail.
 # ---------------------------------------------------------------------------
-# 4. Wait for health (D3); roll back on fail.
-if ! bash deploy/healthcheck.sh; then
-    echo "[deploy] Healthcheck failed rolling back" >&2
+if ! bash deploy/healthcheck.sh; then 
+    echo "[deploy] Healthcheck failed! Activating auto-rollback..." >&2 
     
-    # 這個 if 判斷式非常關鍵！它能確保在沒有 rollback.sh 的情況下腳本不會因為找不到檔案而崩潰
-    if [ -x deploy/rollback.sh ]; then
+    # 確保 rollback.sh 存在且有權限，隨後立刻執行它進行 30 秒極速還原 
+    if [ -x deploy/rollback.sh ]; then 
         bash deploy/rollback.sh
     else
-        echo "[deploy] WARNING: deploy/rollback.sh not yet implemented (Part E)" >&2
+        echo "[deploy] CRITICAL: rollback.sh missing or not executable!" >&2
+        exit 1
     fi
     exit 1
 fi
