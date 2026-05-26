@@ -22,6 +22,7 @@ import cv2
 import numpy as np
 
 from src.mqtt_publisher import MqttPublisher, PublisherConfig
+from src import healthcheck
 
 # ── module-level state ────────────────────────────────────────────────
 _running: bool = True
@@ -261,6 +262,7 @@ class InferenceNode:
 
 def main(argv: list[str] | None = None) -> None:
     """Parse CLI args and start the InferenceNode."""
+    healthcheck.start_in_thread()
     parser = argparse.ArgumentParser(description="YOLO TensorRT inference node")
     parser.add_argument("--model", default="/opt/models/best.engine")
     parser.add_argument("--source", default="/opt/data/test_video.mp4")

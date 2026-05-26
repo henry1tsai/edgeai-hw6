@@ -35,6 +35,8 @@ COPY src/inference_node.py /app/
 COPY entrypoint.sh /app/
 RUN chmod +x /app/entrypoint.sh && mkdir -p /opt/models
 COPY best.pt /opt/models/
+COPY src/healthcheck.py .
+EXPOSE 8000
 # No GPU work in this image. The TRT engine is compiled at container
 # start by entrypoint.sh — see that file for rationale.
 WORKDIR /app
