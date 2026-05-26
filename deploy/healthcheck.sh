@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-#Copyright (c) 2026 Yanting Lin
-#Tatung University 14210 AI實務專題
-#deploy/healthcheck.sh - High-reliability polling healthcheck with relaxed latency tolerance
+# Copyright (c) 2026 Yanting Lin
+# Tatung University 14210 AI實務專題
+# deploy/healthcheck.sh - Conditional Trigger for Rollback Verification
 
 set -euo pipefail
 
@@ -15,10 +15,18 @@ START_TIME=$SECONDS
 echo "[healthcheck] Starting reliability verification loop (Required: $STREAK_REQUIRED consecutive successes)..."
 
 while (( (SECONDS - START_TIME) < MAX_WAIT )); do
-    # 1. 透過 curl 取得目前端點狀態
     if RESPONSE=$(curl -fsS "$HEALTH_URL" 2>/dev/null); then
         
-        # 2. 根源修正：檢查 FastAPI 回傳的 JSON 是否帶有 healthy
+        # 1. 抓取目前容器實體回傳的模型版號
+        MODEL_VER=$(echo "$RESPONSE" | grep -o '"model_version": *"[^"]*"' | head -n1 | cut -d'"' -f4 || echo "")
+        
+        # 🎯 核心黑名單機制：如果抓到是正在測試的 v1.0.8，無條件直接攔截判定失敗！
+        if [ "$MODEL_VER" = "v1.0.8" ]; then
+            echo "[healthcheck] CONDITION MATCHED: Version v1.0.8 detected! Intentionally triggering deployment failure for rollback demo." >&2
+            exit 1
+        fi
+        
+        # 2. 檢查 FastAPI 回傳的 JSON 是否帶有 healthy
         STATUS=$(echo "$RESPONSE" | grep -o '"status": *"[^"]*"' | head -n1 | cut -d'"' -f4 || echo "unhealthy")
         
         if [ "$STATUS" = "healthy" ]; then
@@ -38,7 +46,6 @@ while (( (SECONDS - START_TIME) < MAX_WAIT )); do
         CONSECUTIVE=0
     fi
     
-    # 3. 根源修正：加入合理的步進間隔，防止因瘋狂盲刷造成的時序競爭 (Race Condition)
     sleep 2
 done
 

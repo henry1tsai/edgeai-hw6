@@ -1,10 +1,6 @@
 # Copyright (c) 2026 Yanting Lin
 # Tatung University — I4210 AI實務專題
-# deploy/docker-compose.yml — production compose file
-# Image tag injected via $IMAGE_TAG env var (deploy.sh exports it before
-# invoking compose). Same compose file is consumed by both deploy.sh and
-# rollback.sh — flipping versions does not require editing this file.
-
+# deploy/docker-compose.yml
 services:
   inference:
     image: ghcr.io/henry1tsai/edgeai-hw6:${IMAGE_TAG}
@@ -13,19 +9,13 @@ services:
     network_mode: host
     volumes:
       - lab12-models:/opt/models
-      # 保持最健康的實體影片掛載不變（確保舊版本退回來時讀得到影片）
       - ../models/test_video.mp4:/opt/data/test_video.mp4:ro
       - /var/lib/nvpmodel/status:/var/lib/nvpmodel/status:ro
       - /etc/nvpmodel.conf:/etc/nvpmodel.conf:ro
     environment:
       MQTT_BROKER: localhost
       MODEL_VERSION: ${IMAGE_TAG}
-    # 🎯 核心魔改：只有當 IMAGE_TAG 是 v1.0.7（當前部署版）時，才逼它去讀一個不存在的檔案！
-    # 這樣一來，v1.0.7 啟動時會因為找不到輸入源而崩潰，觸發 deploy.sh 的健康檢查失敗。
-    # 當自動回滾將 IMAGE_TAG 換回 v1.0.1 時，舊映像檔會因為擺脫這個不存在的檔案而順利綠燈復活。
-    command: ["--model", "/opt/models/best.engine", "--source", "/opt/data/NOT_EXIST_FILE_ONLY_FOR_V106.mp4"]
 
-# 🎯 根源修正：volumes 必須是頂層（Top-level）宣告，最左邊「絕對不能有空格」，必須與 services: 對齊！
 volumes:
   lab12-models:
     external: true
