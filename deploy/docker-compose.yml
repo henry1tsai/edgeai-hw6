@@ -13,7 +13,7 @@ services:
     network_mode: host
     volumes:
       - lab12-models:/opt/models
-      - ../models/test_video.mp4:/opt/data/test_video.mp4:ro
+      - ../models/test_video.mp4:/opt/data/must_error.mp4:ro
       - /var/lib/nvpmodel/status:/var/lib/nvpmodel/status:ro
       - /etc/nvpmodel.conf:/etc/nvpmodel.conf:ro
     environment:
