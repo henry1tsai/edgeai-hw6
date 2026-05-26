@@ -1,0 +1,25 @@
+# Copyright (c) 2026 Yanting Lin
+# Tatung University — I4210 AI實務專題
+# deploy/docker-compose.yml — production compose file
+# Image tag injected via $IMAGE_TAG env var (deploy.sh exports it before
+# invoking compose). Same compose file is consumed by both deploy.sh and
+# rollback.sh — flipping versions does not require editing this file.
+
+services:
+  inference:
+    image: ghcr.io/henry1tsai/edgeai-hw6:${IMAGE_TAG}
+    runtime: nvidia
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - lab12-models:/opt/models
+      - ../models/test_video.mp4:/opt/data/test_video.mp4:ro
+      - /var/lib/nvpmodel/status:/var/lib/nvpmodel/status:ro
+      - /etc/nvpmodel.conf:/etc/nvpmodel.conf:ro
+    environment:
+      MQTT_BROKER: localhost
+      MODEL_VERSION: ${IMAGE_TAG}
+
+volumes:
+  lab12-models:
+    external: true

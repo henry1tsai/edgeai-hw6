@@ -21,14 +21,8 @@ from typing import Protocol, cast, runtime_checkable
 import cv2
 import numpy as np
 
-try:
-    # 正常狀況：遵循 HW6 標準目錄結構
-    from src import healthcheck
-    from src.mqtt_publisher import MqttPublisher, PublisherConfig
-except ModuleNotFoundError:
-    # 容錯狀況：應對 Dockerfile.single 把檔案直接扁平化塞在 /app/ 的過渡期
-    import healthcheck  # type: ignore[import-not-found]
-    from mqtt_publisher import MqttPublisher, PublisherConfig  # type: ignore[import-not-found]
+from src import healthcheck
+from src.mqtt_publisher import MqttPublisher, PublisherConfig
 
 # ── module-level state ────────────────────────────────────────────────
 _running: bool = True

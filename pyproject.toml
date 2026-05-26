@@ -16,6 +16,8 @@ requires-python = "==3.10.*"
 dependencies = [
     "paho-mqtt>=2.0",
     "numpy>=1.26,<2",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.pdm]
