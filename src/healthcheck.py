@@ -5,6 +5,11 @@
 
 Started as a background thread by inference_node.main() so every container
 gets the endpoint for free without a sidecar.
+
+The endpoint reports the LIVE nvpmodel state by reading the kernel-maintained
+status file directly (not by invoking the nvpmodel binary, which would need
+procfs paths that cannot be bind-mounted). Both files are bind-mounted
+read-only into the container by deploy/docker-compose.yml (see Part D2).
 """
 
 from __future__ import annotations
@@ -18,10 +23,7 @@ from pathlib import Path
 PORT: int = int(os.environ.get("HEALTHZ_PORT", "8000"))
 MODEL_VERSION: str = os.environ.get("MODEL_VERSION", "unknown")
 
-# nvpmodel state files — bind-mounted read-only into the container by
-# deploy/docker-compose.yml (see Part D2 of the assignment). Reading these
-# directly avoids invoking the nvpmodel binary inside the container, which
-# would need procfs paths that can't be bind-mounted at runtime.
+# nvpmodel state files (bind-mounted read-only from host by docker-compose.yml)
 _STATUS_PATH: Path = Path("/var/lib/nvpmodel/status")
 _CONF_PATH: Path = Path("/etc/nvpmodel.conf")
 

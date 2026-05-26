@@ -21,6 +21,7 @@ from typing import Protocol, cast, runtime_checkable
 import cv2
 import numpy as np
 
+from src import healthcheck
 from src.mqtt_publisher import MqttPublisher, PublisherConfig
 
 # ── module-level state ────────────────────────────────────────────────
@@ -261,6 +262,7 @@ class InferenceNode:
 
 def main(argv: list[str] | None = None) -> None:
     """Parse CLI args and start the InferenceNode."""
+    healthcheck.start_in_thread()
     parser = argparse.ArgumentParser(description="YOLO TensorRT inference node")
     parser.add_argument("--model", default="/opt/models/best.engine")
     parser.add_argument("--source", default="/opt/data/test_video.mp4")
@@ -268,7 +270,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--mqtt-broker", default=os.getenv("MQTT_BROKER", "localhost"))
     parser.add_argument("--mqtt-port", type=int, default=int(os.getenv("MQTT_PORT", "1883")))
-    parser.add_argument("--mqtt-topic", default="/sense/vision/detections")
+    parser.add_argument("--mqtt-topic", default="jetson/vision/detections")
     args = parser.parse_args(argv)
 
     config = PublisherConfig(
