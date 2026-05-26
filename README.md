@@ -209,8 +209,8 @@ Kubernetes 內部複雜的 Kubelet 控制面、etcd 狀態資料庫、kube-proxy
 ### Part D — Tag-Triggered Deploy (20 pts)
 *  Tag deployment successfully gate-kept by GitHub Production Environment Reviewers
 * [x] Screenshot: `evidence/production-env-settings.png`
-* [x] Screenshot: `evidence/deploy-log-nvpmodel.png`
-* [x] Screenshot: `evidence/healthz-curl.png`
+*  Screenshot: `evidence/deploy-log-nvpmodel.png`
+*  Screenshot: `evidence/healthz-curl.png`
 
 ### Part E — Rollback Under 30 s (5 pts)
 * [x] Authentic parameter-driven atomic rollback verified under live conditions. Target reverted from `v1.0.12` to `v1.0.1` and completed within 4.8 seconds (Wall Time $< 30$s)
