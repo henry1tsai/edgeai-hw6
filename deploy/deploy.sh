@@ -96,14 +96,14 @@ docker compose -f "$COMPOSE_FILE" up -d --force-recreate
 # ---------------------------------------------------------------------------
 # 4. Wait for health; roll back on fail.
 # ---------------------------------------------------------------------------
-if ! bash deploy/healthcheck.sh; then 
-    echo "[deploy] Healthcheck failed! Activating auto-rollback..." >&2 
+if ! bash deploy/healthcheck.sh; then
+    echo "[deploy] Healthcheck failed! Activating parameter-driven auto-rollback..." >&2
     
-    # 確保 rollback.sh 存在且有權限，隨後立刻執行它進行 30 秒極速還原 
-    if [ -x deploy/rollback.sh ]; then 
-        bash deploy/rollback.sh
+    # 這裡的 CURRENT_TAG 是 v1.0.2，PREV_TAG 是部署前安全存下來的 v1.0.1
+    if [ -x deploy/rollback.sh ]; then
+        bash deploy/rollback.sh "$CURRENT_TAG" "$PREV_TAG"
     else
-        echo "[deploy] CRITICAL: rollback.sh missing or not executable!" >&2
+        echo "[deploy] CRITICAL: rollback.sh missing!" >&2
         exit 1
     fi
     exit 1
