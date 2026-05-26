@@ -21,8 +21,8 @@ from typing import Protocol, cast, runtime_checkable
 import cv2
 import numpy as np
 
-from src.mqtt_publisher import MqttPublisher, PublisherConfig
 from src import healthcheck
+from src.mqtt_publisher import MqttPublisher, PublisherConfig
 
 # ── module-level state ────────────────────────────────────────────────
 _running: bool = True
