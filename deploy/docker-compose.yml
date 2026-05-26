@@ -13,13 +13,14 @@ services:
     network_mode: host
     volumes:
       - lab12-models:/opt/models
-      - ../models/test_video.mp4:/opt/data/must_error.mp4:ro
+      # 保持最健康的實體影片掛載不變（確保舊版本退回來時讀得到影片）
+      - ../models/test_video.mp4:/opt/data/test_video.mp4:ro
       - /var/lib/nvpmodel/status:/var/lib/nvpmodel/status:ro
       - /etc/nvpmodel.conf:/etc/nvpmodel.conf:ro
     environment:
       MQTT_BROKER: localhost
       MODEL_VERSION: ${IMAGE_TAG}
-
-volumes:
-  lab12-models:
-    external: true
+    # 🎯 核心魔改在這裡：只有當 IMAGE_TAG 是 v1.0.6 時，才逼它去讀一個不存在的檔案！
+    # 這樣一來，v1.0.6 啟動時會因為找不到輸入源而崩潰；
+    # 但當 rollback.sh 把 IMAGE_TAG 換回 v1.0.1 時，這個 command 就不會生效（因為 v1.0.1 的鏡像內部自帶原本正確的預設啟動命令）！
+    command: ["--model", "/opt/models/best.engine", "--source", "/opt/data/NOT_EXIST_FILE_ONLY_FOR_V106.mp4"]
