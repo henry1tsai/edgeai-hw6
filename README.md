@@ -43,7 +43,7 @@ pdm run pytest tests/ --ignore=tests/integration
 # 語法：bash deploy/rollback.sh <壞掉的版本> <確認穩定的舊版本>
 time bash deploy/rollback.sh "v1.0.12" "v1.0.1"
 ```
-*註：本案優化了 Docker 工作目錄範疇，回滾過程無需重新下載映像檔，Wall Time 穩定保持在 4~6 秒，低於作業要求之 $\le 30$ 秒硬性限制。*
+*註：目前未能成功
 
 #### Two-broken-tags recovery 處理方式
 若不幸發生連續兩個 Tag（例如新發行的 `v1.0.11` 與 `v1.0.12`）皆因不可抗力故障，而持久化歷史檔案 `deployed.txt.history` 遭到破壞或版本互相踩踏時，`rollback.sh` 內建防禦性降級邏輯（File Auditing Fallback）：腳本會強制讀取本地持久化歷史檔案的最底列，或降級至系統設定的黃金基線版本（Baseline Master: `v1.0.1`）。
@@ -199,16 +199,15 @@ Kubernetes 內部複雜的 Kubelet 控制面、etcd 狀態資料庫、kube-proxy
 
 ### Part B — Five-Stage Workflow Graph (15 pts)
 *  5 jobs with correct needs graph → `.github/workflows/ci.yml`
-* [x] `bandit` + `pip-audit` both run → green security-scan job: https://github.com/henry1tsai/edgeai-hw6/actions/runs/12345678/jobs/1
-* [x] integration-test runs on jetson → `ci.yml` runs-on: `[self-hosted, linux, arm64, jetson]`
-* [x] Workflow runs green end-to-end on main → https://github.com/henry1tsai/edgeai-hw6/actions/runs/12345678
-
+*  `bandit` + `pip-audit` both run → green security-scan job: https://github.com/henry1tsai/edgeai-hw6/actions/runs/26389817099
+*  integration-test runs on jetson → `ci.yml` runs-on: `[self-hosted, linux, arm64, jetson]`
+* [x] Workflow runs green end-to-end on main 
 ### Part C — Integration Test on Jetson (15 pts)
-* [x] Integration E2E verification workflow on host runner executed seamlessly without native mocking libraries
-* [x] Integration Test Logs verified via automated GHCR pull telemetry
+*  Integration E2E verification workflow on host runner executed seamlessly without native mocking libraries
+*  Integration Test Logs verified via automated GHCR pull telemetry
 
 ### Part D — Tag-Triggered Deploy (20 pts)
-* [x] Tag deployment successfully gate-kept by GitHub Production Environment Reviewers
+*  Tag deployment successfully gate-kept by GitHub Production Environment Reviewers
 * [x] Screenshot: `evidence/production-env-settings.png`
 * [x] Screenshot: `evidence/deploy-log-nvpmodel.png`
 * [x] Screenshot: `evidence/healthz-curl.png`
