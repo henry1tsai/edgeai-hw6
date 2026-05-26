@@ -21,8 +21,14 @@ from typing import Protocol, cast, runtime_checkable
 import cv2
 import numpy as np
 
-from src import healthcheck
-from src.mqtt_publisher import MqttPublisher, PublisherConfig
+try:
+    # 正常狀況：遵循 HW6 標準目錄結構
+    from src import healthcheck
+    from src.mqtt_publisher import MqttPublisher, PublisherConfig
+except ModuleNotFoundError:
+    # 容錯狀況：應對 Dockerfile.single 把檔案直接扁平化塞在 /app/ 的過渡期
+    import healthcheck  # type: ignore[import-not-found]
+    from mqtt_publisher import MqttPublisher, PublisherConfig  # type: ignore[import-not-found]
 
 # ── module-level state ────────────────────────────────────────────────
 _running: bool = True
@@ -270,7 +276,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--conf", type=float, default=0.25)
     parser.add_argument("--mqtt-broker", default=os.getenv("MQTT_BROKER", "localhost"))
     parser.add_argument("--mqtt-port", type=int, default=int(os.getenv("MQTT_PORT", "1883")))
-    parser.add_argument("--mqtt-topic", default="/sense/vision/detections")
+    parser.add_argument("--mqtt-topic", default="jetson/vision/detections")
     args = parser.parse_args(argv)
 
     config = PublisherConfig(
