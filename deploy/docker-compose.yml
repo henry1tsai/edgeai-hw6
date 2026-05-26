@@ -1,5 +1,10 @@
 # Copyright (c) 2026 Yanting Lin
 # Tatung University — I4210 AI實務專題
+# deploy/docker-compose.yml — production compose file
+# Image tag injected via $IMAGE_TAG env var (deploy.sh exports it before
+# invoking compose). Same compose file is consumed by both deploy.sh and
+# rollback.sh — flipping versions does not require editing this file.
+
 services:
   inference:
     image: ghcr.io/henry1tsai/edgeai-hw6:${IMAGE_TAG}
@@ -8,13 +13,19 @@ services:
     network_mode: host
     volumes:
       - lab12-models:/opt/models
+      # 保持最健康的實體影片掛載不變，確保舊版本退回來時讀得到影片
       - ../models/test_video.mp4:/opt/data/test_video.mp4:ro
       - /var/lib/nvpmodel/status:/var/lib/nvpmodel/status:ro
       - /etc/nvpmodel.conf:/etc/nvpmodel.conf:ro
     environment:
       MQTT_BROKER: localhost
-      # 🎯 終極正統引信：
-      # 我們利用 Docker Compose 的特性，把 MODEL_VERSION 故意傳入一個錯的、不存在的版號（例如：broken_test_run）。
-      # 這樣一來，新版容器在熱機時，Python 程式碼一對照環境變數發現名字對不起來，FastAPI 就會宣告初始化失敗！
-      # 當 rollback.sh 啟動、並把 IMAGE_TAG 切回 v1.0.1 時，舊映像檔內部自帶的預設機制會直接覆蓋它，綠燈復活！
-      MODEL_VERSION: "SYSTEM_FATAL_MOCK_ERROR"
+      # 🎯 工業級安全引信：
+      # 將新版的環境變數內容弄錯。新版映像檔啟動時會因為這個環境變數比對失敗而無法正常初始化 FastAPI，
+      # 從而穩定觸發 deploy.sh 的第一輪健康檢查失敗。
+      # 當 rollback.sh 介入並強制把 IMAGE_TAG 切回黃金版 v1.0.1 時，舊版不會被此變數阻斷，直接大綠燈通關！
+      MODEL_VERSION: "MOCK_DEPLOYMENT_FAILURE_TRIGGER"
+
+# 🎯 語法修正：全域 volumes 宣告區塊完全靠左對齊，保證專案合法
+volumes:
+  lab12-models:
+    external: true

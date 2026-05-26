@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-#Copyright (c) 2026 Yanting Lin
-#Tatung University 14210 AI實務專題
-#deploy/rollback.sh - Robust parameter-driven atomic rollback
+# Copyright (c) 2026 Yanting Lin
+# Tatung University 14210 AI實務專題
+# deploy/rollback.sh - Robust parameter-driven atomic rollback
 
 set -euo pipefail
 
@@ -24,6 +24,10 @@ echo "[rollback] Executing recovery to guaranteed stable version: $PREV_TAG"
 
 # 強制將容器拉回真正穩定的上一版
 export IMAGE_TAG="$PREV_TAG"
+
+# 🎯 根源修正：回滾執行時也強制切回專案根目錄，防止相對路徑與專案定義錯位
+cd /home/jetson/edgeai-hw6
+
 docker compose -f deploy/docker-compose.yml up -d --force-recreate
 
 # 進行回滾後的健康檢查

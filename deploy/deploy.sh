@@ -9,7 +9,7 @@
 #   2. Save the currently-deployed tag to deployed.txt.history (so
 #      rollback.sh knows what "previous version" means).
 #   3. docker compose pull → recreate container with the new IMAGE_TAG.
-#   4. Run healthcheck.sh; if it fails, trigger rollback.sh with explicit tags.
+#   4. Run healthcheck.sh; if it fails, trigger rollback.sh.
 #   5. On success, write the new tag to deployed.txt.
 #
 # Usage:
@@ -18,10 +18,10 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# 0. 核心變數與別名宣告 (解決 set -u 地雷，完全符合生產規範)
+# 0. 核心變數與別名宣告 (精準綁定語意，封死 set -u 地雷)
 # ---------------------------------------------------------------------------
 TAG="${1:?Usage: deploy.sh <vX.Y.Z>}"
-CURRENT_TAG="$TAG"                                     # 綁定當前要部署的 Tag (e.g., v1.0.5)
+CURRENT_TAG="$TAG"
 ENV="${DEPLOY_ENV:-production}"
 STATE_DIR=/var/lib/edgeai-hw6
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,7 +29,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 mkdir -p "$STATE_DIR"
 
-# 事先安全取得上一個版本號。如果檔案不存在（例如第一次部署），則降級給予基礎預設值
+# 事先安全讀取上一版健康的 Tag 作為備援變數
 PREV_TAG=$(cat "$STATE_DIR/deployed.txt" 2>/dev/null || echo "v1.0.1")
 
 # ---------------------------------------------------------------------------
@@ -73,15 +73,17 @@ fi
 # 3. Pull the requested tag, recreate the inference container.
 # ---------------------------------------------------------------------------
 export IMAGE_TAG="$CURRENT_TAG"
-COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
+
+# 🎯 根源修正：強制切換到專案根目錄，導正 Docker Compose 工作視角
+cd "$REPO_ROOT"
 
 echo "[deploy] Pulling image for tag $CURRENT_TAG"
-if ! docker compose -f "$COMPOSE_FILE" pull; then
+if ! docker compose -f deploy/docker-compose.yml pull; then
   echo "[deploy] WARNING: pull failed; falling back to local image cache"
 fi
 
 echo "[deploy] Recreating container with tag $CURRENT_TAG"
-docker compose -f "$COMPOSE_FILE" up -d --force-recreate
+docker compose -f deploy/docker-compose.yml up -d --force-recreate
 
 # ---------------------------------------------------------------------------
 # 4. Wait for health; roll back on fail.
@@ -89,11 +91,11 @@ docker compose -f "$COMPOSE_FILE" up -d --force-recreate
 if ! bash deploy/healthcheck.sh; then
     echo "[deploy] Healthcheck failed! Activating parameter-driven auto-rollback..." >&2
     
-    # 這裡精準傳入已對齊的 CURRENT_TAG 與 PREV_TAG，絕不噴出 unbound variable
     if [ -x deploy/rollback.sh ]; then
+        # 精準將當前壞的與確認好的變數傳遞下去
         bash deploy/rollback.sh "$CURRENT_TAG" "$PREV_TAG"
     else
-        echo "[deploy] CRITICAL: rollback.sh missing or not executable!" >&2
+        echo "[deploy] CRITICAL: rollback.sh missing!" >&2
         exit 1
     fi
     exit 1
