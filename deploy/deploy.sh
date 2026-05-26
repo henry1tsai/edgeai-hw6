@@ -2,23 +2,11 @@
 # Copyright (c) 2026 Yanting Lin
 # Tatung University — I4210 AI實務專題
 # deploy/deploy.sh — main production deployment script.
-#
-# Sequence:
-#   1. Resolve power mode NAME (from power_profile.json) → numeric ID
-#      against the Jetson's /etc/nvpmodel.conf, then apply via nvpmodel.
-#   2. Save the currently-deployed tag to deployed.txt.history (so
-#      rollback.sh knows what "previous version" means).
-#   3. docker compose pull → recreate container with the new IMAGE_TAG.
-#   4. Run healthcheck.sh; if it fails, trigger rollback.sh.
-#   5. On success, write the new tag to deployed.txt.
-#
-# Usage:
-#   bash deploy/deploy.sh <vX.Y.Z>
 
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# 0. 核心變數與別名宣告 (精準綁定語意，封死 set -u 地雷)
+# 0. 核心變數與別名宣告
 # ---------------------------------------------------------------------------
 TAG="${1:?Usage: deploy.sh <vX.Y.Z>}"
 CURRENT_TAG="$TAG"
@@ -29,11 +17,11 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 mkdir -p "$STATE_DIR"
 
-# 事先安全讀取上一版健康的 Tag 作為備援變數
+# 事先安全取得上一個版本號
 PREV_TAG=$(cat "$STATE_DIR/deployed.txt" 2>/dev/null || echo "v1.0.1")
 
 # ---------------------------------------------------------------------------
-# 1. Resolve the configured power-mode NAME → numeric ID for THIS Jetson SKU.
+# 1. Resolve power-mode
 # ---------------------------------------------------------------------------
 PROFILE="${SCRIPT_DIR}/power_profile.json"
 if [ ! -f "$PROFILE" ]; then
@@ -92,7 +80,6 @@ if ! bash deploy/healthcheck.sh; then
     echo "[deploy] Healthcheck failed! Activating parameter-driven auto-rollback..." >&2
     
     if [ -x deploy/rollback.sh ]; then
-        # 精準將當前壞的與確認好的變數傳遞下去
         bash deploy/rollback.sh "$CURRENT_TAG" "$PREV_TAG"
     else
         echo "[deploy] CRITICAL: rollback.sh missing!" >&2

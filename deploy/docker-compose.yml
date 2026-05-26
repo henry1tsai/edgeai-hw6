@@ -19,11 +19,8 @@ services:
       - /etc/nvpmodel.conf:/etc/nvpmodel.conf:ro
     environment:
       MQTT_BROKER: localhost
-      # 🎯 工業級安全引信：
-      # 將新版的環境變數內容弄錯。新版映像檔啟動時會因為這個環境變數比對失敗而無法正常初始化 FastAPI，
-      # 從而穩定觸發 deploy.sh 的第一輪健康檢查失敗。
-      # 當 rollback.sh 介入並強制把 IMAGE_TAG 切回黃金版 v1.0.1 時，舊版不會被此變數阻斷，直接大綠燈通關！
-      MODEL_VERSION: "MOCK_DEPLOYMENT_FAILURE_TRIGGER"
+      # 🎯 恢復完全對稱：讓新舊版都拿到應有的正常版號，Python 主行程與心跳檔絕對不會卡死
+      MODEL_VERSION: ${IMAGE_TAG}
 
 # 🎯 語法修正：全域 volumes 宣告區塊完全靠左對齊，保證專案合法
 volumes:
