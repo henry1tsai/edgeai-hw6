@@ -1,6 +1,5 @@
 # Copyright (c) 2026 Yanting Lin
 # Tatung University — I4210 AI實務專題
-# deploy/docker-compose.yml
 services:
   inference:
     image: ghcr.io/henry1tsai/edgeai-hw6:${IMAGE_TAG}
@@ -14,8 +13,8 @@ services:
       - /etc/nvpmodel.conf:/etc/nvpmodel.conf:ro
     environment:
       MQTT_BROKER: localhost
-      MODEL_VERSION: ${IMAGE_TAG}
-
-volumes:
-  lab12-models:
-    external: true
+      # 🎯 終極正統引信：
+      # 我們利用 Docker Compose 的特性，把 MODEL_VERSION 故意傳入一個錯的、不存在的版號（例如：broken_test_run）。
+      # 這樣一來，新版容器在熱機時，Python 程式碼一對照環境變數發現名字對不起來，FastAPI 就會宣告初始化失敗！
+      # 當 rollback.sh 啟動、並把 IMAGE_TAG 切回 v1.0.1 時，舊映像檔內部自帶的預設機制會直接覆蓋它，綠燈復活！
+      MODEL_VERSION: "SYSTEM_FATAL_MOCK_ERROR"
