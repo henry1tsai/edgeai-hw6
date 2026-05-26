@@ -101,7 +101,7 @@ if ! bash deploy/healthcheck.sh; then
     
     # 這裡的 CURRENT_TAG 是 v1.0.2，PREV_TAG 是部署前安全存下來的 v1.0.1
     if [ -x deploy/rollback.sh ]; then
-        bash deploy/rollback.sh "$CURRENT_TAG" "$PREV_TAG"
+        bash deploy/rollback.sh "$1" "$PREV_TAG"
     else
         echo "[deploy] CRITICAL: rollback.sh missing!" >&2
         exit 1
