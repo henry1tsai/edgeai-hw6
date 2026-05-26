@@ -46,7 +46,7 @@ while (( (SECONDS - START_TIME) < MAX_WAIT )); do
         CONSECUTIVE=0
     fi
     
-    sleep 2
+    sleep 1
 done
 
 echo "[healthcheck] FAILED — Failed to maintain stable heartbeat within ${MAX_WAIT}s" >&2
