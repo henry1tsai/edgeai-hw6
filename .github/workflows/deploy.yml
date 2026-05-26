@@ -78,7 +78,7 @@ jobs:
         env:
           DEPLOY_ENV: production
         run: |
-          chmod +x deploy/deploy.sh deploy/healthcheck.sh deploy/rollback.sh
+          chmod +x deploy/deploy.sh deploy/healthcheck.sh 
           bash deploy/deploy.sh "${{ github.ref_name }}"
 
       - name: Verify final /healthz response
