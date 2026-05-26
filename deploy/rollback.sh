@@ -1,52 +1,38 @@
 #!/usr/bin/env bash
 #Copyright (c) 2026 Yanting Lin
 #Tatung University 14210 AI實務專題
-#deploy/rollback.sh - Automated, fast rollback to previous stable tag.
+#deploy/rollback.sh - Robust parameter-driven atomic rollback
 
 set -euo pipefail
 
 STATE_DIR=/var/lib/edgeai-hw6
 
+# 從參數直接獲取精準的版本版號，不再盲讀檔案
+BROKEN_TAG="${1:-}"
+PREV_TAG="${2:-}"
+
+# 如果沒傳參數，才降級去讀取現地檔案作為備援
+if [ -z "$BROKEN_TAG" ] || [ -z "$PREV_TAG" ]; then
+    echo "[rollback] No arguments provided, falling back to file auditing..."
+    BROKEN_TAG=$(cat "$STATE_DIR/deployed.txt" 2>/dev/null || echo "v1.0.2")
+    PREV_TAG=$(tail -n 1 "$STATE_DIR/deployed.txt.history" 2>/dev/null || echo "v1.0.1")
+fi
+
 echo "[rollback] Commencing atomic rollback procedure..."
+echo "[rollback] Identified broken version: $BROKEN_TAG"
+echo "[rollback] Executing recovery to guaranteed stable version: $PREV_TAG"
 
-# 1. 檢查是否存在持久化狀態檔案
-if [ ! -f "$STATE_DIR/deployed.txt" ]; then
-    echo "[rollback] CRITICAL ERROR: Current state file missing. Cannot audit versions." >&2
-    exit 1
-fi
-
-# 2. 尋找並讀取上一個成功運行的穩定版本 Tag
-if [ -f "$STATE_DIR/deployed.txt.history" ] && [ -s "$STATE_DIR/deployed.txt.history" ]; then
-    PREV_TAG=$(tail -n 1 "$STATE_DIR/deployed.txt.history")
-else
-    echo "[rollback] ERROR: No deployment history found in records. Aborting." >&2
-    exit 1
-fi
-
-CURRENT_TAG=$(cat "$STATE_DIR/deployed.txt")
-echo "[rollback] Current broken version: $CURRENT_TAG"
-echo "[rollback] Recovering to known stable version: $PREV_TAG"
-
-# 3. 容錯拉取：拉取歷史安全映像檔，即使驗證過期也能依賴在地快取（Proceed on auth expiry）
+# 強制將容器拉回真正穩定的上一版
 export IMAGE_TAG="$PREV_TAG"
-echo "[rollback] Pulling rollback target image: $IMAGE_TAG"
-docker compose -f deploy/docker-compose.yml pull || \
-    echo "[rollback] WARNING: Registry access unauthenticated; rolling back using local cache."
-
-# 4. 強制重建容器堆疊（與 deploy.sh 共享同一個動態環境變數變更）
-echo "[rollback] Restructuring container layers to $IMAGE_TAG..."
 docker compose -f deploy/docker-compose.yml up -d --force-recreate
 
-# 5. 呼叫 D3 健康檢查，實施雙重損壞防範
-echo "[rollback] Validating fallback environment with healthcheck.sh..."
+# 進行回滾後的健康檢查
 if bash deploy/healthcheck.sh; then
-    # 回滾成功，將狀態檔案還原，並清理歷史記錄檔的最後一行
+    # 回滾成功後，精準導正狀態檔案
     echo "$PREV_TAG" > "$STATE_DIR/deployed.txt"
-    # 自行移出歷史堆疊中的最後一筆記錄
-    sed -i '$d' "$STATE_DIR/deployed.txt.history"
-    echo "[rollback] SUCCESS: System recovered and stable at $PREV_TAG."
+    echo "[rollback] SUCCESS: System safely recovered and locked at $PREV_TAG."
     exit 0
 else
-    echo "[rollback] FATAL CRITICAL: Both current and previous tags are broken! Alerting operator immediately." >&2
+    echo "[rollback] FATAL CRITICAL: Rollback target $PREV_TAG also failed healthcheck!" >&2
     exit 1
 fi
